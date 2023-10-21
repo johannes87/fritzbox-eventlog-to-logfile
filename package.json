@@ -1,0 +1,20 @@
+{
+    "name": "log-with-puppeteer",
+    "version": "1.0.0",
+    "description": "",
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch",
+        "start": "node --env-file .env dist/main.js"
+    },
+    "keywords": [],
+    "author": "Johannes Bittner",
+    "license": "ISC",
+    "type": "module",
+    "dependencies": {
+        "puppeteer": "^21.3.8"
+    },
+    "devDependencies": {
+        "typescript": "^5.2.2"
+    }
+}
