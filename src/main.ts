@@ -1,4 +1,6 @@
 import puppeteer from 'puppeteer';
+import process from 'process';
+import { getLastSessionId, writeLastSessionId } from './sessionIdCache.js';
 
 interface EventLogEntry {
     date: string;
@@ -8,27 +10,18 @@ interface EventLogEntry {
 
 interface Configuration {
     fritzBoxUrl: string;
-    password: string;
+    fritzBoxPassword: string;
 }
 
-/**
- * Get the session ID from fritzbox.
- * @param {string} fritzBoxUrl the HTTP URL to the fritzbox, without a trailing '/'
- * @param {string} password the password for fritzbox
- * @returns {Promise<string>} the session id
- */
-async function getSessionId(
-    fritzBoxUrl: string,
-    password: string
-): Promise<string> {
+async function getSessionId(configuration: Configuration): Promise<string> {
     const browser = await puppeteer.launch({ headless: 'new' });
     const page = await browser.newPage();
 
-    await page.goto(fritzBoxUrl);
+    await page.goto(configuration.fritzBoxUrl);
     await page.setViewport({ width: 1080, height: 1024 });
 
     const element = await page.waitForSelector('#uiPassInput');
-    await element?.type(password);
+    await element?.type(configuration.fritzBoxPassword);
 
     const loginButton = await page.waitForSelector('#submitLoginBtn');
     await loginButton?.click();
@@ -45,34 +38,29 @@ async function getSessionId(
     return sessionId;
 }
 
-/**
- * Get the event log from fritzbox.
- * @param fritzBoxUrl the HTTP URL to the fritzbox, without a trailing '/'
- * @param sessionId the session ID
- * @returns the event log
- */
 async function getEventLog(
-    fritzBoxUrl: string,
+    configuration: Configuration,
     sessionId: string
-): Promise<EventLogEntry[]> {
-    const response = await fetch(`${fritzBoxUrl}/data.lua`, {
+): Promise<EventLogEntry[] | undefined> {
+    const response = await fetch(`${configuration.fritzBoxUrl}/data.lua`, {
         headers: {
             accept: '*/*',
             'accept-language':
                 'en-DE,en;q=0.9,de-DE;q=0.8,de;q=0.7,en-GB;q=0.6,en-US;q=0.5',
             'content-type': 'application/x-www-form-urlencoded',
-            Referer: `${fritzBoxUrl}/`,
+            Referer: `${configuration.fritzBoxUrl}/`,
             'Referrer-Policy': 'strict-origin-when-cross-origin',
         },
         body: `xhr=1&sid=${sessionId}&lang=en&page=log&xhrId=all`,
         method: 'POST',
     });
-    const responseJson = await response.json();
-    const result = responseJson?.data?.log;
-    if (!result) {
-        throw new Error(
-            `Unexpected JSON response, expected structure: {data: {log: ...}}. Received data: ${responseJson}`
-        );
+    let result;
+    try {
+        const responseJson = await response.json();
+        result = responseJson?.data?.log;
+    } catch {
+        // This happens if we don't have a valid session id. In this case,
+        // undefined is returned.
     }
     return result;
 }
@@ -89,24 +77,38 @@ function getConfiguration(): Configuration {
         throw new Error('FRITZ_BOX_URL env variable not defined');
     }
     const fritzBoxUrlWithoutTrailingSlash = fritzBoxUrl.replace(/\/$/, '');
-    const password = process.env.FRITZ_BOX_PASSWORD;
-    if (!password) {
+    const fritzBoxPassword = process.env.FRITZ_BOX_PASSWORD;
+    if (!fritzBoxPassword) {
         throw new Error('FRITZ_BOX_PASSWORD env variable not defined');
     }
-    return { fritzBoxUrl: fritzBoxUrlWithoutTrailingSlash, password };
+    return { fritzBoxUrl: fritzBoxUrlWithoutTrailingSlash, fritzBoxPassword };
 }
 
 async function main() {
+    const configuration = getConfiguration();
+    let sessionId = getLastSessionId();
     try {
-        const configuration = getConfiguration();
-        const sessionId = await getSessionId(
-            configuration.fritzBoxUrl,
-            configuration.password
-        );
-        const eventLog = await getEventLog(
-            configuration.fritzBoxUrl,
-            sessionId
-        );
+        if (!sessionId) {
+            // Session ID cache is empty, so we need to initially fill it
+            sessionId = await getSessionId(configuration);
+            writeLastSessionId(sessionId);
+        }
+        let eventLog = await getEventLog(configuration, sessionId);
+
+        if (!eventLog) {
+            // Our cached session ID did not work, so we get a new one
+            sessionId = await getSessionId(configuration);
+            writeLastSessionId(sessionId);
+            eventLog = await getEventLog(configuration, sessionId);
+        }
+
+        if (!eventLog) {
+            // We should have an event log now, but somehow we don't
+            throw new Error(
+                'Could not get event log after renewing session ID'
+            );
+        }
+
         printEventLog(eventLog);
     } catch (error) {
         console.error(error);
