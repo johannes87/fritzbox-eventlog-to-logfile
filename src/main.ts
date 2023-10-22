@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer';
 import process from 'process';
-import { getLastSessionId, writeLastSessionId } from './sessionIdCache.js';
+import { getLastSessionId, writeLastSessionId } from './SessionIdCache.js';
 
 interface EventLogEntry {
     date: string;
