@@ -61,12 +61,6 @@ async function getEventLog(
     return eventLog;
 }
 
-function printEventLog(eventLog: EventLogEntry[]) {
-    for (const log of eventLog) {
-        console.log(`${log.date} ${log.time} ${log.msg}`);
-    }
-}
-
 async function main() {
     const configuration = getConfiguration();
     let sessionId = getLastSessionId();
