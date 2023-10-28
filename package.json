@@ -6,7 +6,6 @@
         "dev": "tsc --watch",
         "start": "node --env-file .env dist/main.js"
     },
-    "keywords": [],
     "author": "Johannes Bittner",
     "license": "ISC",
     "type": "module",
