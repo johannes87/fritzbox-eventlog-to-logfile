@@ -1,12 +1,16 @@
-import puppeteer from 'puppeteer';
+import puppeteer, { PuppeteerLaunchOptions } from 'puppeteer';
 import { getLastSessionId, writeLastSessionId } from './SessionIdCache.js';
 import { Configuration } from './types/Configuration.js';
-import { getConfiguration } from './Configuration.js';
+import { getConfiguration } from './ConfigurationReader.js';
 import { EventLogEntry } from './types/EventLogEntry.js';
 import { writeLogFile } from './LogFileWriter.js';
 
 async function getSessionId(configuration: Configuration): Promise<string> {
-    const browser = await puppeteer.launch({ headless: 'new' });
+    const launchOptions: PuppeteerLaunchOptions = { headless: 'new' };
+    if (configuration.puppeteerExecutablePath) {
+        launchOptions.executablePath = configuration.puppeteerExecutablePath;
+    }
+    const browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
 
     await page.goto(configuration.fritzBoxUrl);
