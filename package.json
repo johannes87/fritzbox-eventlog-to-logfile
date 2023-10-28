@@ -10,9 +10,12 @@
     "license": "ISC",
     "type": "module",
     "dependencies": {
+        "eol": "^0.9.1",
+        "luxon": "^3.4.3",
         "puppeteer": "^21.3.8"
     },
     "devDependencies": {
+        "@types/luxon": "^3.3.3",
         "typescript": "^5.2.2"
     }
 }

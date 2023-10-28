@@ -1,17 +1,9 @@
 import puppeteer from 'puppeteer';
-import process from 'process';
 import { getLastSessionId, writeLastSessionId } from './SessionIdCache.js';
-
-interface EventLogEntry {
-    date: string;
-    time: string;
-    msg: string;
-}
-
-interface Configuration {
-    fritzBoxUrl: string;
-    fritzBoxPassword: string;
-}
+import { Configuration } from './types/Configuration.js';
+import { getConfiguration } from './Configuration.js';
+import { EventLogEntry } from './types/EventLogEntry.js';
+import { writeLogFile } from './LogFileWriter.js';
 
 async function getSessionId(configuration: Configuration): Promise<string> {
     const browser = await puppeteer.launch({ headless: 'new' });
@@ -54,34 +46,25 @@ async function getEventLog(
         body: `xhr=1&sid=${sessionId}&lang=en&page=log&xhrId=all`,
         method: 'POST',
     });
-    let result;
+    let eventLog: EventLogEntry[] | undefined;
     try {
         const responseJson = await response.json();
-        result = responseJson?.data?.log;
+        eventLog = responseJson?.data?.log;
     } catch {
         // This happens if we don't have a valid session id. In this case,
         // undefined is returned.
     }
-    return result;
+    if (eventLog) {
+        // Make newest log entry the last entry in the array
+        eventLog.reverse();
+    }
+    return eventLog;
 }
 
 function printEventLog(eventLog: EventLogEntry[]) {
     for (const log of eventLog) {
         console.log(`${log.date} ${log.time} ${log.msg}`);
     }
-}
-
-function getConfiguration(): Configuration {
-    const fritzBoxUrl = process.env.FRITZ_BOX_URL;
-    if (!fritzBoxUrl) {
-        throw new Error('FRITZ_BOX_URL env variable not defined');
-    }
-    const fritzBoxUrlWithoutTrailingSlash = fritzBoxUrl.replace(/\/$/, '');
-    const fritzBoxPassword = process.env.FRITZ_BOX_PASSWORD;
-    if (!fritzBoxPassword) {
-        throw new Error('FRITZ_BOX_PASSWORD env variable not defined');
-    }
-    return { fritzBoxUrl: fritzBoxUrlWithoutTrailingSlash, fritzBoxPassword };
 }
 
 async function main() {
@@ -109,7 +92,7 @@ async function main() {
             );
         }
 
-        printEventLog(eventLog);
+        writeLogFile(configuration, eventLog);
     } catch (error) {
         console.error(error);
     }

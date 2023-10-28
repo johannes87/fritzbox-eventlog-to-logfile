@@ -2,3 +2,4 @@
 /node_modules
 /dist
 /.session_id_cache
+/events.log
