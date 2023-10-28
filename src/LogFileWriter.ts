@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import { DateTime } from 'luxon';
+import eol from 'eol';
 import { Configuration } from './types/Configuration.js';
 import { EventLogEntry } from './types/EventLogEntry.js';
-import eol from 'eol';
 
 function getDateTimeFromLog(date: string, time: string): DateTime {
     return DateTime.fromFormat(`${date} ${time}`, 'dd.mm.yy HH:mm:ss');
