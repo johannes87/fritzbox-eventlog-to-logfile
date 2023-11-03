@@ -5,7 +5,7 @@ import { Configuration } from './types/Configuration.js';
 import { EventLogEntry } from './types/EventLogEntry.js';
 
 function getDateTimeFromLog(date: string, time: string): DateTime {
-    return DateTime.fromFormat(`${date} ${time}`, 'dd.mm.yy HH:mm:ss');
+    return DateTime.fromFormat(`${date} ${time}`, 'dd.MM.yy HH:mm:ss');
 }
 
 async function getDateTimeOfNewestLogFileEntry(
